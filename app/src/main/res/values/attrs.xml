@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="BethelView">
+        <attr name="fixCircleRadiusMax" format="dimension" />
+        <attr name="fixCircleRadiusMin" format="dimension" />
+        <attr name="dragCircleRadius" format="dimension" />
+        <attr name="circleColor" format="color" />
+    </declare-styleable>
+</resources>
