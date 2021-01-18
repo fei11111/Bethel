@@ -1,15 +1,22 @@
 package com.fei.bethel;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.animation.OvershootInterpolator;
 
 import androidx.annotation.Nullable;
 
@@ -40,6 +47,10 @@ public class BethelView extends View {
     private PointF mFixPoint = new PointF();
     //拖拽圆坐标
     private PointF mDragPoint = new PointF();
+    //图片
+    private Bitmap mBitmap;
+    //动画时长
+    private int mDuration = 350;
 
     public BethelView(Context context) {
         this(context, null);
@@ -92,7 +103,10 @@ public class BethelView extends View {
             //3.画贝塞尔曲线
             canvas.drawPath(bethelPath, mPaint);
         }
-
+        if (mBitmap != null) {
+            canvas.drawBitmap(mBitmap, mDragPoint.x - mBitmap.getWidth() / 2,
+                    mDragPoint.y - mBitmap.getHeight() / 2, mPaint);
+        }
     }
 
     /**
@@ -154,6 +168,51 @@ public class BethelView extends View {
         mDragPoint.x = x;
         mDragPoint.y = y;
         invalidate();
+    }
+
+    public void setBitmap(Bitmap bitmap) {
+        mBitmap = bitmap;
+    }
+
+    /**
+     * 手指抬起
+     */
+    public void actionUp(OnBubbleTouchListener.IActionUpListener listener) {
+        //手指抬起时判断是要回弹还是开启爆炸动画
+        if (mFixCircleRadius < mFixCircleRadiusMix) {
+            //半径小于最小值，开启爆炸动画
+            listener.dismiss(mDragPoint);
+        } else {
+            //回弹,开启动画回弹
+            springBackAnimation(listener);
+        }
+    }
+
+    /**
+     * 回弹,开启动画回弹
+     */
+    private void springBackAnimation(final OnBubbleTouchListener.IActionUpListener listener) {
+        ValueAnimator valueAnimator = ObjectAnimator.ofFloat(1f, 0f);
+        valueAnimator.setDuration(mDuration);
+        valueAnimator.setInterpolator(new OvershootInterpolator(3f));
+        final PointF endPointF = new PointF(mDragPoint.x, mDragPoint.y);
+        valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                //不断更新拖拽点坐标
+                float percent = (float) animation.getAnimatedValue();
+                float endX = mFixPoint.x + (endPointF.x - mFixPoint.x) * percent;
+                float endY = mFixPoint.y + (endPointF.y - mFixPoint.y) * percent;
+                updateDragPoint(endX, endY);
+            }
+        });
+        valueAnimator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                listener.springBack();
+            }
+        });
+        valueAnimator.start();
     }
 
 //    @Override
