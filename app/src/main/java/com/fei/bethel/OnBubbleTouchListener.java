@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.PixelFormat;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.graphics.drawable.AnimationDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,6 +14,7 @@ import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.PixelCopy;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -39,8 +41,10 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
     private WindowManager mWindowManger;
     private BethelView mBethelView;
     //爆炸FrameLayout，需要包裹ImageView，防止ImageView覆盖全屏
-    private FrameLayout mBoundFrameLayout;
-    private ImageView mBoundImageView;
+    private FrameLayout mBombFrameLayout;
+    private ImageView mBombImageView;
+    private WindowManager.LayoutParams mLayoutParams;
+    private ViewGroup.LayoutParams mOriginalViewParams;
 
     public OnBubbleTouchListener(View mView, Context mContext, BethelView.OnDisappearListener onDisappearListener) {
         this.mView = mView;
@@ -48,10 +52,14 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
         this.mDisappearListener = onDisappearListener;
         mWindowManger = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
         mBethelView = new BethelView(mContext);
-        mBoundFrameLayout = new FrameLayout(mContext);
+        mBombFrameLayout = new FrameLayout(mContext);
+        mLayoutParams = new WindowManager.LayoutParams();
+        //背景透明
+        mLayoutParams.format = PixelFormat.TRANSPARENT;
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        mBoundImageView = new ImageView(mContext);
-        mBoundFrameLayout.addView(mBoundImageView, layoutParams);
+        mBombImageView = new ImageView(mContext);
+        mBombImageView.setImageResource(R.drawable.anim_bubble_pop);
+        mBombFrameLayout.addView(mBombImageView, layoutParams);
     }
 
     @Override
@@ -60,19 +68,17 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
             case MotionEvent.ACTION_DOWN:
                 //按下隐藏原来的View
                 mView.setVisibility(View.INVISIBLE);
+                mOriginalViewParams = mView.getLayoutParams();
                 //在windowManager添加一个一样的View
                 mBethelView.setBitmap(getBitmap(mView));
-                WindowManager.LayoutParams layoutParams = new WindowManager.LayoutParams();
-                //背景透明
-                layoutParams.format = PixelFormat.TRANSPARENT;
-                mWindowManger.addView(mBethelView, layoutParams);
+                mWindowManger.addView(mBethelView, mLayoutParams);
                 //取view的中心点
                 int[] location = new int[2];
                 mView.getLocationOnScreen(location);
                 mBethelView.initPoint(location[0] + mView.getWidth() / 2, location[1] + mView.getHeight() / 2 - getStatusBarHeight(mContext));
                 break;
             case MotionEvent.ACTION_MOVE:
-                mBethelView.updateDragPoint(event.getRawX(), event.getRawY());
+                mBethelView.updateDragPoint(event.getRawX(), event.getRawY()- getStatusBarHeight(mContext));
                 break;
             case MotionEvent.ACTION_UP:
                 mBethelView.actionUp(new IActionUpListener() {
@@ -80,18 +86,47 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
                     public void springBack() {
                         //回弹后，清除WindowManager，原来View可见
                         mWindowManger.removeView(mBethelView);
+                        mView.setLayoutParams(mOriginalViewParams);
                         mView.setVisibility(View.VISIBLE);
                     }
 
                     @Override
                     public void dismiss(PointF pointF) {
                         //清除WindowManager，原来View消失
+                        mWindowManger.removeView(mBethelView);
+                        //设置imageView在居中位置
+                        mBombImageView.setX(pointF.x - mBombImageView.getWidth() / 2);
+                        mBombImageView.setY(pointF.y - mBombImageView.getHeight() / 2);
                         //windowManger添加ImageView，启动爆炸动画
+                        mWindowManger.addView(mBombFrameLayout, mLayoutParams);
+                        //开启爆炸动画
+                        startBombAnimator();
                     }
                 });
                 break;
         }
         return true;
+    }
+
+    /**
+     * 开启爆炸动画
+     */
+    private void startBombAnimator() {
+        AnimationDrawable animationDrawable = (AnimationDrawable) mBombImageView.getDrawable();
+        //获取每帧时间,为了延迟移除WindowManager上的爆炸界面
+        long time = 0;
+        for (int i = 0; i < animationDrawable.getNumberOfFrames(); i++) {
+            time += animationDrawable.getDuration(i);
+        }
+        animationDrawable.start();
+        mBombImageView.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                //移除WindowManager上的爆炸界面
+                mWindowManger.removeView(mBombFrameLayout);
+                mView.setVisibility(View.GONE);
+            }
+        }, time);
     }
 
     /**
