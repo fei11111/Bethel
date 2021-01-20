@@ -10,7 +10,6 @@ import android.graphics.drawable.AnimationDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.view.PixelCopy;
 import android.view.View;
@@ -55,7 +54,11 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
         mBombFrameLayout = new FrameLayout(mContext);
         mLayoutParams = new WindowManager.LayoutParams();
         //背景透明
+        mLayoutParams.flags = WindowManager.LayoutParams.FLAG_FULLSCREEN;
         mLayoutParams.format = PixelFormat.TRANSPARENT;
+        mLayoutParams.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
         FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         mBombImageView = new ImageView(mContext);
         mBombImageView.setImageResource(R.drawable.anim_bubble_pop);
@@ -75,10 +78,10 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
                 //取view的中心点
                 int[] location = new int[2];
                 mView.getLocationOnScreen(location);
-                mBethelView.initPoint(location[0] + mView.getWidth() / 2, location[1] + mView.getHeight() / 2 - getStatusBarHeight(mContext));
+                mBethelView.initPoint(location[0] + mView.getWidth() / 2, location[1] + mView.getHeight() / 2);
                 break;
             case MotionEvent.ACTION_MOVE:
-                mBethelView.updateDragPoint(event.getRawX(), event.getRawY()- getStatusBarHeight(mContext));
+                mBethelView.updateDragPoint(event.getRawX(), event.getRawY());
                 break;
             case MotionEvent.ACTION_UP:
                 mBethelView.actionUp(new IActionUpListener() {
@@ -177,23 +180,6 @@ public class OnBubbleTouchListener implements View.OnTouchListener {
 
     }
 
-    /**
-     * 状态栏高度
-     *
-     * @param context
-     * @return
-     */
-    private int getStatusBarHeight(Context context) {
-        int id = context.getResources().getIdentifier("status_bar_height", "dimen", "android");
-        if (id > 0) {
-            return context.getResources().getDimensionPixelSize(id);
-        }
-        return dp2px(context, 25);
-    }
-
-    private int dp2px(Context context, float dp) {
-        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, context.getResources().getDisplayMetrics());
-    }
 
     public interface IActionUpListener {
         //回弹

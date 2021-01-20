@@ -10,7 +10,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        StatusBarUtil.setStatusBarColor(this, getResources().getColor(R.color.colorPrimary));
         BethelView.attach(findViewById(R.id.tv), new BethelView.OnDisappearListener() {
             @Override
             public void onDismiss() {
